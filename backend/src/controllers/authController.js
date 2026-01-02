@@ -10,7 +10,6 @@ export const register = async (req, res) => {
   try {
     const { username, email, password, role, organization } = req.body;
 
-    // Check if user already exists
     const userExists = await User.findOne({ 
       $or: [{ email }, { username }] 
     });
@@ -22,16 +21,17 @@ export const register = async (req, res) => {
       });
     }
 
-    // Create user
+    // If no organization provided, use email domain as organization
+    const userOrg = organization || email.split('@')[1] || 'default';
+
     const user = await User.create({
       username,
       email,
       password,
-      role: role || 'editor', // Default role is editor
-      organization: organization || 'default'
+      role: role || 'viewer', // DEFAULT CHANGED TO VIEWER
+      organization: userOrg
     });
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(201).json({

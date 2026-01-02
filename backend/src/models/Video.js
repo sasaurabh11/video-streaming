@@ -74,6 +74,10 @@ const videoSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  assignedTo: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   isPublic: {
     type: Boolean,
     default: false
@@ -95,6 +99,7 @@ videoSchema.index({ uploadedBy: 1, organization: 1 });
 videoSchema.index({ status: 1 });
 videoSchema.index({ sensitivityStatus: 1 });
 videoSchema.index({ createdAt: -1 });
+videoSchema.index({ assignedTo: 1 }); // NEW INDEX
 
 // Virtual for formatted file size
 videoSchema.virtual('formattedSize').get(function() {

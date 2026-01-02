@@ -1,4 +1,5 @@
 import Video from '../models/Video.js';
+import User from '../models/User.js'; // ✅ ADD THIS IMPORT
 import { processVideo } from '../services/videoProcessor.js';
 import { unlink } from 'fs/promises';
 import { createReadStream, statSync } from 'fs';
@@ -63,21 +64,81 @@ export const uploadVideo = async (req, res) => {
 
 export const getVideos = async (req, res) => {
   try {
-    const { status, sensitivityStatus, page = 1, limit = 20 } = req.query;
+    const { 
+      status, 
+      sensitivityStatus, 
+      page = 1, 
+      limit = 20,
+      search,
+      sortBy = 'createdAt',
+      order = 'desc',
+      startDate,
+      endDate,
+      minSize,
+      maxSize,
+      minDuration,
+      maxDuration
+    } = req.query;
 
-    const query = {
-      uploadedBy: req.user._id,
-      organization: req.user.organization
-    };
+    const query = { organization: req.user.organization };
 
+    // RBAC: Role-based filtering
+    if (req.user.role === 'viewer') {
+      // Viewers only see videos assigned to them OR public videos
+      query.$or = [
+        { assignedTo: req.user._id },
+        { isPublic: true }
+      ];
+    } else if (req.user.role === 'editor') {
+      // Editors see only their own videos
+      query.uploadedBy = req.user._id;
+    }
+    // Admins see all videos in their organization (no additional filter)
+
+    // Status filters
     if (status) query.status = status;
     if (sensitivityStatus) query.sensitivityStatus = sensitivityStatus;
 
+    // Search by title or description
+    if (search) {
+      query.$or = [
+        { title: new RegExp(search, 'i') },
+        { description: new RegExp(search, 'i') }
+      ];
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    // File size filter
+    if (minSize || maxSize) {
+      query.fileSize = {};
+      if (minSize) query.fileSize.$gte = parseInt(minSize);
+      if (maxSize) query.fileSize.$lte = parseInt(maxSize);
+    }
+
+    // Duration filter
+    if (minDuration || maxDuration) {
+      query.duration = {};
+      if (minDuration) query.duration.$gte = parseInt(minDuration);
+      if (maxDuration) query.duration.$lte = parseInt(maxDuration);
+    }
+
+    // Sorting
+    const sortOrder = order === 'asc' ? 1 : -1;
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder;
+
     const videos = await Video.find(query)
-      .sort({ createdAt: -1 })
+      .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .populate('uploadedBy', 'username email');
+      .populate('uploadedBy', 'username email')
+      .populate('assignedTo', 'username email');
 
     const count = await Video.countDocuments(query);
 
@@ -86,7 +147,7 @@ export const getVideos = async (req, res) => {
       data: {
         videos,
         totalPages: Math.ceil(count / limit),
-        currentPage: page,
+        currentPage: parseInt(page),
         total: count
       }
     });
@@ -137,7 +198,7 @@ export const streamVideo = async (req, res) => {
     let userId;
     let token;
 
-    // Check for token in Authorization header OR query params
+    // Accept token from Authorization header OR query params
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.query.token) {
@@ -151,16 +212,29 @@ export const streamVideo = async (req, res) => {
       });
     }
 
+    // Verify token
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       userId = decoded.id;
     } catch (error) {
+      console.error('Token verification error:', error);
       return res.status(401).json({
         success: false,
         message: 'Invalid or expired token'
       });
     }
 
+    // Get user to check role
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get video
     const video = await Video.findById(req.params.id);
 
     if (!video) {
@@ -170,65 +244,105 @@ export const streamVideo = async (req, res) => {
       });
     }
 
-    // Authorization check
-    if (video.uploadedBy.toString() !== userId.toString()) {
-      const User = (await import('../models/User.js')).default;
-      const user = await User.findById(userId);
-      if (!user || user.role !== 'admin') {
+    // Check authorization based on role
+    const isOwner = video.uploadedBy.toString() === userId.toString();
+    const isAdmin = user.role === 'admin';
+    const isAssigned = video.assignedTo && video.assignedTo.some(id => id.toString() === userId.toString());
+    const isPublic = video.isPublic;
+    const sameOrg = video.organization === user.organization;
+
+    // Authorization logic
+    if (!sameOrg) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access this video - different organization'
+      });
+    }
+
+    if (user.role === 'viewer') {
+      // Viewers can only see assigned or public videos
+      if (!isAssigned && !isPublic) {
         return res.status(403).json({
           success: false,
-          message: 'Not authorized'
+          message: 'Not authorized to access this video - not assigned to you'
+        });
+      }
+    } else if (user.role === 'editor') {
+      // Editors can only see their own videos
+      if (!isOwner) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to access this video - not your video'
         });
       }
     }
+    // Admins can see all videos in their organization (no restriction)
 
-    const { fileURLToPath } = await import('url');
-    const { dirname, join } = await import('path');
-    const { statSync, createReadStream } = await import('fs');
-    
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-
+    // Determine video path
     const videoPath = video.processedPath 
       ? join(__dirname, '../..', video.processedPath)
       : video.filePath;
 
-    const stat = statSync(videoPath);
+    // Check if file exists
+    let stat;
+    try {
+      stat = statSync(videoPath);
+    } catch (error) {
+      console.error('Video file not found:', videoPath);
+      return res.status(404).json({
+        success: false,
+        message: 'Video file not found on server'
+      });
+    }
+
     const fileSize = stat.size;
     const range = req.headers.range;
 
+    // Handle range requests (for seeking)
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunksize = (end - start) + 1;
       const file = createReadStream(videoPath, { start, end });
+      
       const head = {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
         'Content-Type': video.mimeType,
+        'Cache-Control': 'no-cache'
       };
 
       res.writeHead(206, head);
       file.pipe(res);
     } else {
+      // No range request - send entire file
       const head = {
         'Content-Length': fileSize,
         'Content-Type': video.mimeType,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'no-cache'
       };
+      
       res.writeHead(200, head);
       createReadStream(videoPath).pipe(res);
     }
 
-    await video.incrementViews();
+    // Increment views (don't await to avoid blocking)
+    video.incrementViews().catch(err => console.error('Error incrementing views:', err));
+
   } catch (error) {
     console.error('Streaming error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error streaming video',
-      error: error.message
-    });
+    
+    // Don't send JSON if headers already sent
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Error streaming video',
+        error: error.message
+      });
+    }
   }
 };
 
@@ -269,6 +383,88 @@ export const deleteVideo = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting video',
+      error: error.message
+    });
+  }
+};
+
+export const updateVideo = async (req, res) => {
+  try {
+    const { title, description, tags, isPublic } = req.body;
+
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check permissions
+    if (video.uploadedBy.toString() !== req.user._id.toString() && 
+        req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this video'
+      });
+    }
+
+    if (title) video.title = title;
+    if (description !== undefined) video.description = description;
+    if (tags) video.tags = tags.split(',').map(tag => tag.trim());
+    if (isPublic !== undefined) video.isPublic = isPublic;
+
+    await video.save();
+
+    res.json({
+      success: true,
+      message: 'Video updated successfully',
+      data: { video }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating video',
+      error: error.message
+    });
+  }
+};
+
+export const assignVideo = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check permissions
+    if (video.uploadedBy.toString() !== req.user._id.toString() && 
+        req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to assign this video'
+      });
+    }
+
+    video.assignedTo = userIds;
+    await video.save();
+
+    res.json({
+      success: true,
+      message: 'Video assigned successfully',
+      data: { video }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error assigning video',
       error: error.message
     });
   }
