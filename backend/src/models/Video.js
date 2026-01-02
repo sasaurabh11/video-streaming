@@ -94,14 +94,12 @@ const videoSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for better query performance
 videoSchema.index({ uploadedBy: 1, organization: 1 });
 videoSchema.index({ status: 1 });
 videoSchema.index({ sensitivityStatus: 1 });
 videoSchema.index({ createdAt: -1 });
-videoSchema.index({ assignedTo: 1 }); // NEW INDEX
+videoSchema.index({ assignedTo: 1 }); 
 
-// Virtual for formatted file size
 videoSchema.virtual('formattedSize').get(function() {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   if (this.fileSize === 0) return '0 Bytes';
@@ -109,7 +107,6 @@ videoSchema.virtual('formattedSize').get(function() {
   return Math.round(this.fileSize / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 });
 
-// Method to increment views
 videoSchema.methods.incrementViews = async function() {
   this.views += 1;
   return await this.save();

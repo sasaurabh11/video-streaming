@@ -36,7 +36,7 @@ const VideoCard = ({ video, onDelete, onView, onEdit, processingProgress, userRo
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
       <div className="aspect-video bg-gray-200 relative">
         {video.thumbnailPath ? (
-          <img src={`http://localhost:5000${video.thumbnailPath}`} alt={video.title} className="w-full h-full object-cover" />
+          <img src={`${import.meta.env.VITE_BACKEND_URL}${video.thumbnailPath}`} alt={video.title} className="w-full h-full object-cover" />
         ) : (
           <div className="flex items-center justify-center h-full">
             <Video className="w-16 h-16 text-gray-400" />

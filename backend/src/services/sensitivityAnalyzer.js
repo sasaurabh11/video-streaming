@@ -1,26 +1,8 @@
-/**
- * Sensitivity Analysis Service
- * 
- * This is a mock implementation of content sensitivity analysis.
- * In production, this would integrate with:
- * - AWS Rekognition for content moderation
- * - Google Cloud Video Intelligence API
- * - Azure Video Analyzer
- * - Custom ML models for content classification
- */
-
-/**
- * Analyze video content for sensitive material
- * @param {string} filePath - Path to the video file
- * @returns {Promise<Object>} Analysis results
- */
 export const analyzeSensitivity = async (filePath) => {
   return new Promise((resolve) => {
-    // Simulate processing time
     setTimeout(() => {
-      // Generate mock analysis results
-      const score = Math.random(); // 0 to 1
-      const threshold = 0.7; // Threshold for flagging content
+      const score = Math.random(); 
+      const threshold = 0.7; 
 
       const categories = {
         violence: Math.random() * 0.5,
@@ -35,7 +17,7 @@ export const analyzeSensitivity = async (filePath) => {
         analysisDate: new Date(),
         categories,
         flags: score > threshold ? generateFlags(categories) : [],
-        confidence: 0.85 + (Math.random() * 0.15), // 85-100% confidence
+        confidence: 0.85 + (Math.random() * 0.15),
         modelVersion: '1.0.0'
       };
 
@@ -44,13 +26,11 @@ export const analyzeSensitivity = async (filePath) => {
         score: Math.round(score * 100) / 100,
         details
       });
-    }, 2000); // Simulate 2 second analysis
+    }, 2000); 
   });
 };
 
-/**
- * Generate specific flags based on category scores
- */
+
 const generateFlags = (categories) => {
   const flags = [];
   

@@ -1,17 +1,11 @@
 import User from '../models/User.js';
 
-/**
- * @desc    Get all users (Admin only)
- * @route   GET /api/users
- * @access  Private/Admin
- */
 export const getAllUsers = async (req, res) => {
   try {
     const { organization, role, search } = req.query;
     
     const query = {};
     
-    // Admin can see all users in their organization or all if super admin
     if (req.user.role === 'admin' && req.user.organization !== 'super') {
       query.organization = req.user.organization;
     }
@@ -42,11 +36,6 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update user role (Admin only)
- * @route   PATCH /api/users/:id/role
- * @access  Private/Admin
- */
 export const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
@@ -67,7 +56,6 @@ export const updateUserRole = async (req, res) => {
       });
     }
 
-    // Check if admin can modify this user (same organization)
     if (req.user.organization !== 'super' && user.organization !== req.user.organization) {
       return res.status(403).json({
         success: false,
@@ -92,11 +80,6 @@ export const updateUserRole = async (req, res) => {
   }
 };
 
-/**
- * @desc    Toggle user active status (Admin only)
- * @route   PATCH /api/users/:id/status
- * @access  Private/Admin
- */
 export const toggleUserStatus = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = `${import.meta.env.VITE_BACKEND_URL}` || 'http://localhost:5000';
 
 export const useSocket = () => {
   const [socket, setSocket] = useState(null);

@@ -1,5 +1,3 @@
-// Role-Based Access Control Middleware
-
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -20,7 +18,6 @@ export const authorize = (...roles) => {
   };
 };
 
-// Check if user is admin
 export const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
@@ -32,7 +29,6 @@ export const isAdmin = (req, res, next) => {
   }
 };
 
-// Check if user is editor or admin
 export const canEdit = (req, res, next) => {
   if (req.user && (req.user.role === 'editor' || req.user.role === 'admin')) {
     next();
@@ -44,7 +40,6 @@ export const canEdit = (req, res, next) => {
   }
 };
 
-// Check if user owns the resource or is admin
 export const isOwnerOrAdmin = (resourceUserId) => {
   return (req, res, next) => {
     if (!req.user) {

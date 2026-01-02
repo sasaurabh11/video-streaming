@@ -10,7 +10,6 @@ import { analyzeSensitivity } from './sensitivityAnalyzer.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Set ffmpeg path
 ffmpeg.setFfmpegPath(
   typeof ffmpegStatic === 'string'
     ? ffmpegStatic
@@ -23,15 +22,11 @@ ffmpeg.setFfprobePath(
     : ffprobeStatic.path
 );
 
-// Create processed directory if it doesn't exist
 const processedDir = join(__dirname, '../../processed');
 if (!existsSync(processedDir)) {
   mkdirSync(processedDir, { recursive: true });
 }
 
-/**
- * Process video: compress, generate thumbnail, analyze sensitivity
- */
 export const processVideo = async (videoId, io) => {
   try {
     const video = await Video.findById(videoId);
@@ -40,27 +35,22 @@ export const processVideo = async (videoId, io) => {
       throw new Error('Video not found');
     }
 
-    // Update status to processing
     video.status = 'processing';
     video.processingProgress = 0;
     await video.save();
 
-    // Emit initial progress
     emitProgress(io, video, 0, 'Starting video processing...');
 
-    // Step 1: Get video metadata (10% progress)
     const metadata = await getVideoMetadata(video.filePath);
     video.duration = metadata.duration;
     await video.save();
     emitProgress(io, video, 10, 'Retrieved video metadata');
 
-    // Step 2: Generate thumbnail (30% progress)
     const thumbnailPath = await generateThumbnail(video.filePath, video.filename);
     video.thumbnailPath = thumbnailPath;
     await video.save();
     emitProgress(io, video, 30, 'Generated thumbnail');
 
-    // Step 3: Compress video (70% progress)
     const processedPath = await compressVideo(video.filePath, video.filename, (progress) => {
       const currentProgress = 30 + (progress * 0.4); // 30% to 70%
       emitProgress(io, video, currentProgress, 'Compressing video...');
@@ -69,7 +59,6 @@ export const processVideo = async (videoId, io) => {
     await video.save();
     emitProgress(io, video, 70, 'Video compressed');
 
-    // Step 4: Analyze sensitivity (90% progress)
     const sensitivityResult = await analyzeSensitivity(video.filePath);
     video.sensitivityStatus = sensitivityResult.status;
     video.sensitivityScore = sensitivityResult.score;
@@ -77,7 +66,6 @@ export const processVideo = async (videoId, io) => {
     await video.save();
     emitProgress(io, video, 90, 'Analyzed content sensitivity');
 
-    // Step 5: Complete processing (100% progress)
     video.status = 'completed';
     video.processingProgress = 100;
     await video.save();
@@ -89,13 +77,11 @@ export const processVideo = async (videoId, io) => {
   } catch (error) {
     console.error(`❌ Error processing video ${videoId}:`, error);
     
-    // Update video status to failed
     await Video.findByIdAndUpdate(videoId, {
       status: 'failed',
       processingProgress: 0
     });
 
-    // Emit error
     if (io) {
       const video = await Video.findById(videoId);
       io.to(video.uploadedBy.toString()).emit('processing:error', {
@@ -108,9 +94,7 @@ export const processVideo = async (videoId, io) => {
   }
 };
 
-/**
- * Get video metadata using ffprobe
- */
+
 const getVideoMetadata = (filePath) => {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
@@ -129,9 +113,6 @@ const getVideoMetadata = (filePath) => {
   });
 };
 
-/**
- * Generate thumbnail from video
- */
 const generateThumbnail = (filePath, filename) => {
   return new Promise((resolve, reject) => {
     const thumbnailFilename = `thumb-${filename.replace(/\.[^/.]+$/, '')}.jpg`;
@@ -154,9 +135,6 @@ const generateThumbnail = (filePath, filename) => {
   });
 };
 
-/**
- * Compress video using ffmpeg
- */
 const compressVideo = (inputPath, filename, onProgress) => {
   return new Promise((resolve, reject) => {
     const outputFilename = `processed-${filename}`;
@@ -187,9 +165,6 @@ const compressVideo = (inputPath, filename, onProgress) => {
   });
 };
 
-/**
- * Emit progress update via Socket.io
- */
 const emitProgress = (io, video, progress, message) => {
   if (!io) return;
 

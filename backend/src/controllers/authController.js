@@ -1,11 +1,6 @@
 import User from '../models/User.js';
 import { generateToken } from '../middleware/auth.js';
 
-/**
- * @desc    Register new user
- * @route   POST /api/auth/register
- * @access  Public
- */
 export const register = async (req, res) => {
   try {
     const { username, email, password, role, organization } = req.body;
@@ -28,7 +23,7 @@ export const register = async (req, res) => {
       username,
       email,
       password,
-      role: role || 'viewer', // DEFAULT CHANGED TO VIEWER
+      role: role || 'viewer',
       organization: userOrg
     });
 
@@ -53,16 +48,10 @@ export const register = async (req, res) => {
   }
 };
 
-/**
- * @desc    Login user
- * @route   POST /api/auth/login
- * @access  Public
- */
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -70,7 +59,6 @@ export const login = async (req, res) => {
       });
     }
 
-    // Find user and include password
     const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
@@ -80,7 +68,6 @@ export const login = async (req, res) => {
       });
     }
 
-    // Check if user is active
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
@@ -88,7 +75,6 @@ export const login = async (req, res) => {
       });
     }
 
-    // Check password
     const isPasswordMatch = await user.comparePassword(password);
 
     if (!isPasswordMatch) {
@@ -98,11 +84,9 @@ export const login = async (req, res) => {
       });
     }
 
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.json({
@@ -124,11 +108,6 @@ export const login = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get current user
- * @route   GET /api/auth/me
- * @access  Private
- */
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -150,11 +129,7 @@ export const getMe = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update user profile
- * @route   PUT /api/auth/profile
- * @access  Private
- */
+
 export const updateProfile = async (req, res) => {
   try {
     const { username, email } = req.body;

@@ -1,5 +1,5 @@
 import Video from '../models/Video.js';
-import User from '../models/User.js'; // ✅ ADD THIS IMPORT
+import User from '../models/User.js';
 import { processVideo } from '../services/videoProcessor.js';
 import { unlink } from 'fs/promises';
 import { createReadStream, statSync } from 'fs';
@@ -82,7 +82,6 @@ export const getVideos = async (req, res) => {
 
     const query = { organization: req.user.organization };
 
-    // RBAC: Role-based filtering
     if (req.user.role === 'viewer') {
       // Viewers only see videos assigned to them OR public videos
       query.$or = [
@@ -90,16 +89,12 @@ export const getVideos = async (req, res) => {
         { isPublic: true }
       ];
     } else if (req.user.role === 'editor') {
-      // Editors see only their own videos
       query.uploadedBy = req.user._id;
     }
-    // Admins see all videos in their organization (no additional filter)
 
-    // Status filters
     if (status) query.status = status;
     if (sensitivityStatus) query.sensitivityStatus = sensitivityStatus;
 
-    // Search by title or description
     if (search) {
       query.$or = [
         { title: new RegExp(search, 'i') },
@@ -107,28 +102,24 @@ export const getVideos = async (req, res) => {
       ];
     }
 
-    // Date range filter
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
-    // File size filter
     if (minSize || maxSize) {
       query.fileSize = {};
       if (minSize) query.fileSize.$gte = parseInt(minSize);
       if (maxSize) query.fileSize.$lte = parseInt(maxSize);
     }
 
-    // Duration filter
     if (minDuration || maxDuration) {
       query.duration = {};
       if (minDuration) query.duration.$gte = parseInt(minDuration);
       if (maxDuration) query.duration.$lte = parseInt(maxDuration);
     }
 
-    // Sorting
     const sortOrder = order === 'asc' ? 1 : -1;
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder;
@@ -198,7 +189,6 @@ export const streamVideo = async (req, res) => {
     let userId;
     let token;
 
-    // Accept token from Authorization header OR query params
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.query.token) {
@@ -212,7 +202,6 @@ export const streamVideo = async (req, res) => {
       });
     }
 
-    // Verify token
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       userId = decoded.id;
@@ -224,7 +213,6 @@ export const streamVideo = async (req, res) => {
       });
     }
 
-    // Get user to check role
     const user = await User.findById(userId);
 
     if (!user) {
@@ -234,7 +222,6 @@ export const streamVideo = async (req, res) => {
       });
     }
 
-    // Get video
     const video = await Video.findById(req.params.id);
 
     if (!video) {
@@ -251,7 +238,6 @@ export const streamVideo = async (req, res) => {
     const isPublic = video.isPublic;
     const sameOrg = video.organization === user.organization;
 
-    // Authorization logic
     if (!sameOrg) {
       return res.status(403).json({
         success: false,
@@ -260,7 +246,6 @@ export const streamVideo = async (req, res) => {
     }
 
     if (user.role === 'viewer') {
-      // Viewers can only see assigned or public videos
       if (!isAssigned && !isPublic) {
         return res.status(403).json({
           success: false,
@@ -268,7 +253,6 @@ export const streamVideo = async (req, res) => {
         });
       }
     } else if (user.role === 'editor') {
-      // Editors can only see their own videos
       if (!isOwner) {
         return res.status(403).json({
           success: false,
@@ -276,14 +260,10 @@ export const streamVideo = async (req, res) => {
         });
       }
     }
-    // Admins can see all videos in their organization (no restriction)
-
-    // Determine video path
     const videoPath = video.processedPath 
       ? join(__dirname, '../..', video.processedPath)
       : video.filePath;
 
-    // Check if file exists
     let stat;
     try {
       stat = statSync(videoPath);
@@ -298,7 +278,6 @@ export const streamVideo = async (req, res) => {
     const fileSize = stat.size;
     const range = req.headers.range;
 
-    // Handle range requests (for seeking)
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
@@ -317,7 +296,6 @@ export const streamVideo = async (req, res) => {
       res.writeHead(206, head);
       file.pipe(res);
     } else {
-      // No range request - send entire file
       const head = {
         'Content-Length': fileSize,
         'Content-Type': video.mimeType,
@@ -329,13 +307,11 @@ export const streamVideo = async (req, res) => {
       createReadStream(videoPath).pipe(res);
     }
 
-    // Increment views (don't await to avoid blocking)
     video.incrementViews().catch(err => console.error('Error incrementing views:', err));
 
   } catch (error) {
     console.error('Streaming error:', error);
     
-    // Don't send JSON if headers already sent
     if (!res.headersSent) {
       res.status(500).json({
         success: false,
@@ -401,7 +377,6 @@ export const updateVideo = async (req, res) => {
       });
     }
 
-    // Check permissions
     if (video.uploadedBy.toString() !== req.user._id.toString() && 
         req.user.role !== 'admin') {
       return res.status(403).json({
@@ -444,7 +419,6 @@ export const assignVideo = async (req, res) => {
       });
     }
 
-    // Check permissions
     if (video.uploadedBy.toString() !== req.user._id.toString() && 
         req.user.role !== 'admin') {
       return res.status(403).json({

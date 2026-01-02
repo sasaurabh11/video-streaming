@@ -25,9 +25,7 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter
 const fileFilter = (req, file, cb) => {
-  // Allowed video formats
   const allowedMimes = [
     'video/mp4',
     'video/mpeg',
@@ -44,7 +42,6 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configure multer
 export const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -53,7 +50,6 @@ export const upload = multer({
   }
 });
 
-// Error handler for multer errors
 export const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
