@@ -6,7 +6,8 @@ export const getAllUsers = async (req, res) => {
     
     const query = {};
     
-    if (req.user.role === 'admin' && req.user.organization !== 'super') {
+    // Filter by organization for all users (editors and admins)
+    if (req.user.organization !== 'super') {
       query.organization = req.user.organization;
     }
     

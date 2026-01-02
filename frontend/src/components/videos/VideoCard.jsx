@@ -1,7 +1,7 @@
 import React from 'react';
-import { Video, Eye, Play, Edit2, Trash2, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Video, Eye, Play, Edit2, Trash2, Clock, CheckCircle, AlertCircle, UserPlus } from 'lucide-react';
 
-const VideoCard = ({ video, onDelete, onView, onEdit, processingProgress, userRole }) => {
+const VideoCard = ({ video, onDelete, onView, onEdit, onAssign, processingProgress, userRole }) => {
   const getStatusBadge = () => {
     const badges = {
       uploading: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, text: 'Uploading' },
@@ -81,12 +81,21 @@ const VideoCard = ({ video, onDelete, onView, onEdit, processingProgress, userRo
               <button
                 onClick={() => onEdit(video)}
                 className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-1"
+                title="Edit video"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
               <button
+                onClick={() => onAssign && onAssign(video)}
+                className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1"
+                title="Assign to viewers"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => onDelete(video._id)}
                 className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1"
+                title="Delete video"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

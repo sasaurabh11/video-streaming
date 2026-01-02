@@ -8,6 +8,7 @@ import AdvancedFilters from '../videos/AdvancedFilters';
 import VideoCard from '../videos/VideoCard';
 import VideoPlayer from '../videos/VideoPlayer';
 import EditVideoModal from '../videos/EditVideoModal';
+import AssignVideoModal from '../videos/AssignVideoModal';
 import AdminPanel from '../admin/AdminPanel';
 
 const Dashboard = () => {
@@ -15,6 +16,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [editingVideo, setEditingVideo] = useState(null);
+  const [assigningVideo, setAssigningVideo] = useState(null);
   const [processingProgress, setProcessingProgress] = useState({});
   const [currentView, setCurrentView] = useState('videos');
   const [filters, setFilters] = useState({});
@@ -158,6 +160,7 @@ const Dashboard = () => {
                           onDelete={handleDelete}
                           onView={setSelectedVideo}
                           onEdit={setEditingVideo}
+                          onAssign={setAssigningVideo}
                           processingProgress={processingProgress}
                           userRole={user?.role}
                         />
@@ -201,6 +204,14 @@ const Dashboard = () => {
         <EditVideoModal
           video={editingVideo}
           onClose={() => setEditingVideo(null)}
+          onSave={() => loadVideos(pagination.currentPage)}
+        />
+      )}
+      
+      {assigningVideo && (
+        <AssignVideoModal
+          video={assigningVideo}
+          onClose={() => setAssigningVideo(null)}
           onSave={() => loadVideos(pagination.currentPage)}
         />
       )}
