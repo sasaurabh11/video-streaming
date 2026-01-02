@@ -67,3 +67,4 @@ Thumbs.db
 # Optional: uploads (only if stored locally)
 # =========================
 uploads/
+processed/
