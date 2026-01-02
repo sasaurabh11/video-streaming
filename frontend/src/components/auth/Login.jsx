@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Video } from 'lucide-react';
+import { FiMail, FiLock, FiLogIn, FiEye, FiEyeOff, FiVideo } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 
 const Login = ({ onToggle }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -19,53 +20,88 @@ const Login = ({ onToggle }) => {
     try {
       await login({ email, password });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <div className="flex items-center justify-center mb-6">
-          <Video className="w-12 h-12 text-blue-600" />
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold mb-2">Login to Your Account</h3>
+        <p className="text-gray-400 text-sm">Enter your credentials to continue</p>
+      </div>
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-700/50 text-red-200 p-4 rounded-lg text-sm backdrop-blur-sm">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+            <span>{error}</span>
+          </div>
         </div>
-        <h2 className="text-2xl font-bold text-center mb-6">Login to VideoStream</h2>
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{error}</div>
-        )}
-        <div className="space-y-4">
+      )}
+
+      <div className="space-y-5">
+        <div className="relative">
+          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+            <FiMail size={18} />
+          </div>
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-12 pr-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all duration-200 placeholder-gray-500"
           />
+        </div>
+
+        <div className="relative">
+          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+            <FiLock size={18} />
+          </div>
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-12 pr-12 py-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all duration-200 placeholder-gray-500"
           />
           <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
           </button>
         </div>
-        <p className="text-center mt-4 text-sm">
-          Don't have an account?{' '}
-          <button onClick={onToggle} className="text-blue-600 hover:underline">
-            Register
-          </button>
-        </p>
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 shadow-lg hover:shadow-xl"
+        >
+          {loading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>Signing in...</span>
+            </>
+          ) : (
+            <>
+              <FiLogIn size={18} />
+              <span>Sign In</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="text-center text-sm text-gray-400">
+        Don't have an account?{' '}
+        <button onClick={onToggle} className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+          Create one now
+        </button>
       </div>
     </div>
   );

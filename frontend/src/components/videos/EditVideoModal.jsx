@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../../api';
+import { FiEdit2, FiX, FiSave } from 'react-icons/fi';
 
 const EditVideoModal = ({ video, onClose, onSave }) => {
   const [title, setTitle] = useState(video.title);
@@ -20,39 +21,69 @@ const EditVideoModal = ({ video, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h2 className="text-xl font-bold mb-4">Edit Video</h2>
-        <div className="space-y-4">
+    <div className="fixed inset-0 bg-gradient-to-br from-black/95 via-gray-900/90 to-black/95 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="glass rounded-2xl border border-gray-800 max-w-md w-full overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-gray-800 bg-gradient-to-r from-gray-900 to-gray-900/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+                <FiEdit2 className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold">Edit Video</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <FiX className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Title</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Title
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg"
+              className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg"
+              className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all min-h-[120px] resize-y"
               rows={4}
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <FiSave className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </>
+              )}
             </button>
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+              className="px-6 py-3 border border-gray-700 rounded-lg font-medium hover:bg-gray-800 transition-colors"
             >
               Cancel
             </button>

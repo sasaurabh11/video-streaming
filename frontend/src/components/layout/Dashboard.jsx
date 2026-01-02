@@ -1,8 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Video, User, Home, LogOut, Users, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  FiVideo,
+  FiUser,
+  FiHome,
+  FiLogOut,
+  FiUsers,
+  FiShield,
+  FiChevronLeft,
+  FiChevronRight,
+  FiUpload,
+  FiSearch,
+  FiGrid,
+  FiList,
+  FiSettings
+} from 'react-icons/fi';
+
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../api/socket';
 import api from '../../api';
+
 import VideoUpload from '../videos/VideoUpload';
 import AdvancedFilters from '../videos/AdvancedFilters';
 import VideoCard from '../videos/VideoCard';
@@ -12,6 +28,9 @@ import AssignVideoModal from '../videos/AssignVideoModal';
 import AdminPanel from '../admin/AdminPanel';
 
 const Dashboard = () => {
+  const { user, logout } = useAuth();
+  const socket = useSocket();
+
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -21,14 +40,19 @@ const Dashboard = () => {
   const [currentView, setCurrentView] = useState('videos');
   const [filters, setFilters] = useState({});
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
-  const { user, logout } = useAuth();
-  const socket = useSocket();
+  const [viewMode, setViewMode] = useState('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const canUpload = user?.role === 'editor' || user?.role === 'admin';
+  const isAdmin = user?.role === 'admin';
 
   const loadVideos = async (page = 1) => {
     setLoading(true);
     try {
-      const params = { ...filters, page, limit: 10 };
-      Object.keys(params).forEach(key => !params[key] && delete params[key]);
+      const params = { ...filters, page, limit: 12 };
+      if (searchQuery) params.search = searchQuery;
+      Object.keys(params).forEach(k => !params[k] && delete params[k]);
+
       const res = await api.videos.list(params);
       setVideos(res.data.videos);
       setPagination({
@@ -43,23 +67,20 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    if (currentView === 'videos') {
-      loadVideos();
-    }
-  }, [filters, currentView]);
+    if (currentView === 'videos') loadVideos(1);
+  }, [filters, currentView, searchQuery]);
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('processing:progress', (data) => {
-      setProcessingProgress(prev => ({ ...prev, [data.videoId]: data.progress }));
+    socket.on('processing:progress', data => {
+      setProcessingProgress(p => ({ ...p, [data.videoId]: data.progress }));
       if (data.progress === 100) {
         setTimeout(() => loadVideos(pagination.currentPage), 1000);
       }
     });
 
-    socket.on('processing:error', (data) => {
-      alert(`Processing failed: ${data.error}`);
+    socket.on('processing:error', () => {
       loadVideos(pagination.currentPage);
     });
 
@@ -69,137 +90,145 @@ const Dashboard = () => {
     };
   }, [socket]);
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this video?')) return;
-    try {
-      await api.videos.delete(id);
-      loadVideos(pagination.currentPage);
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const canUpload = user?.role === 'editor' || user?.role === 'admin';
-  const isAdmin = user?.role === 'admin';
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Video className="w-8 h-8 text-blue-600" />
-            <h1 className="text-2xl font-bold">VideoStream</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950">
+
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 glass border-b border-gray-800">
+        <div className="px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+              <FiVideo className="text-white" size={22} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold gradient-text">VideoStream</h1>
+              <p className="text-xs text-gray-400">Video Dashboard</p>
+            </div>
           </div>
+
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600 flex items-center gap-2">
-              <User className="w-4 h-4" />
-              {user?.username}
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
-                {user?.role}
-              </span>
-            </span>
             {isAdmin && (
               <button
                 onClick={() => setCurrentView(currentView === 'videos' ? 'admin' : 'videos')}
-                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+                className="px-4 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-2"
               >
-                {currentView === 'videos' ? <Users className="w-4 h-4" /> : <Home className="w-4 h-4" />}
-                {currentView === 'videos' ? 'Admin Panel' : 'Videos'}
+                {currentView === 'videos' ? <FiUsers /> : <FiHome />}
+                {currentView === 'videos' ? 'Admin' : 'Videos'}
               </button>
             )}
-            <button onClick={logout} className="text-red-600 hover:text-red-700">
-              <LogOut className="w-5 h-5" />
+
+            <button
+              onClick={logout}
+              className="px-4 py-2 rounded-lg hover:bg-red-900/30 text-red-400 flex items-center gap-2"
+            >
+              <FiLogOut />
+              Logout
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <div className="max-w-7xl mx-auto p-4">
+      {/* MAIN */}
+      <main className="p-6">
         {currentView === 'admin' ? (
           <AdminPanel />
         ) : (
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fadeIn">
+
+            {/* LEFT — UPLOAD */}
+            <div className="lg:col-span-3">
               {canUpload ? (
                 <VideoUpload onUploadSuccess={() => loadVideos(1)} />
               ) : (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-center text-gray-600">
-                    You have view-only access. Contact an admin to upload videos.
+                <div className="glass rounded-2xl p-8 border border-gray-800 text-center">
+                  <FiShield className="mx-auto mb-4 text-gray-400" size={32} />
+                  <h3 className="text-lg font-semibold mb-2">View Only</h3>
+                  <p className="text-gray-400">
+                    You don’t have permission to upload videos.
                   </p>
                 </div>
               )}
             </div>
-            <div className="md:col-span-2">
-              <AdvancedFilters filters={filters} onFilterChange={handleFilterChange} />
-              
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Home className="w-5 h-5" />
-                  {user?.role === 'viewer' ? 'Assigned Videos' : 'My Videos'}
-                </h2>
-                
+
+            {/* RIGHT — VIDEOS */}
+            <div className="lg:col-span-9 space-y-6">
+
+              {/* FILTERS */}
+              <div className="glass rounded-2xl p-6 border border-gray-800">
+                <div className="flex flex-col sm:flex-row justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">
+                      {user?.role === 'viewer' ? 'Assigned Videos' : 'My Videos'}
+                    </h2>
+                    <p className="text-gray-400">{videos.length} videos</p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex bg-gray-900 rounded-lg p-1">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className={`p-2 rounded ${viewMode === 'grid' && 'bg-gray-800'}`}
+                      >
+                        <FiGrid />
+                      </button>
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`p-2 rounded ${viewMode === 'list' && 'bg-gray-800'}`}
+                      >
+                        <FiList />
+                      </button>
+                    </div>
+
+                    <AdvancedFilters
+                      filters={filters}
+                      onFilterChange={(k, v) =>
+                        setFilters(prev => ({ ...prev, [k]: v }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* VIDEO GRID */}
+              <div className="glass rounded-2xl p-6 border border-gray-800">
                 {loading ? (
-                  <p className="text-center py-8 text-gray-500">Loading...</p>
+                  <p className="text-center text-gray-400 py-16">Loading…</p>
                 ) : videos.length === 0 ? (
-                  <p className="text-center py-8 text-gray-500">
-                    {canUpload ? 'No videos yet. Upload your first video!' : 'No videos assigned to you yet.'}
+                  <p className="text-center text-gray-400 py-16">
+                    No videos found
                   </p>
                 ) : (
-                  <>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      {videos.map(video => (
-                        <VideoCard
-                          key={video._id}
-                          video={video}
-                          onDelete={handleDelete}
-                          onView={setSelectedVideo}
-                          onEdit={setEditingVideo}
-                          onAssign={setAssigningVideo}
-                          processingProgress={processingProgress}
-                          userRole={user?.role}
-                        />
-                      ))}
-                    </div>
-                    
-                    {pagination.totalPages > 1 && (
-                      <div className="flex justify-center items-center gap-2 mt-6">
-                        <button
-                          onClick={() => loadVideos(pagination.currentPage - 1)}
-                          disabled={pagination.currentPage === 1}
-                          className="p-2 border rounded disabled:opacity-50"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="text-sm">
-                          Page {pagination.currentPage} of {pagination.totalPages}
-                        </span>
-                        <button
-                          onClick={() => loadVideos(pagination.currentPage + 1)}
-                          disabled={pagination.currentPage === pagination.totalPages}
-                          className="p-2 border rounded disabled:opacity-50"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </>
+                  <div
+                    className={`grid gap-6 ${
+                      viewMode === 'grid'
+                        ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
+                        : 'grid-cols-1'
+                    }`}
+                  >
+                    {videos.map(video => (
+                      <VideoCard
+                        key={video._id}
+                        video={video}
+                        onView={setSelectedVideo}
+                        onEdit={setEditingVideo}
+                        onAssign={setAssigningVideo}
+                        processingProgress={processingProgress}
+                        userRole={user?.role}
+                        viewMode={viewMode}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
           </div>
         )}
-      </div>
+      </main>
 
+      {/* MODALS */}
       {selectedVideo && (
         <VideoPlayer video={selectedVideo} onClose={() => setSelectedVideo(null)} />
       )}
-      
       {editingVideo && (
         <EditVideoModal
           video={editingVideo}
@@ -207,7 +236,6 @@ const Dashboard = () => {
           onSave={() => loadVideos(pagination.currentPage)}
         />
       )}
-      
       {assigningVideo && (
         <AssignVideoModal
           video={assigningVideo}
